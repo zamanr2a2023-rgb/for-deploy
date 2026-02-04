@@ -1,0 +1,87 @@
+{
+  "auth": {
+    "login_success": "تم تسجيل الدخول بنجاح",
+    "login_failed": "رقم الهاتف أو كلمة المرور غير صحيحة",
+    "logout_success": "تم تسجيل الخروج بنجاح",
+    "phone_required": "رقم الهاتف مطلوب",
+    "password_required": "كلمة المرور مطلوبة",
+    "account_blocked": "تم حظر حسابك",
+    "invalid_credentials": "بيانات اعتماد غير صالحة",
+    "token_expired": "انتهت الجلسة. الرجاء تسجيل الدخول مرة أخرى",
+    "unauthorized": "وصول غير مصرح به"
+  },
+  "otp": {
+    "sent_success": "تم إرسال رمز التحقق بنجاح",
+    "send_failed": "فشل إرسال رمز التحقق",
+    "invalid_code": "رمز التحقق غير صحيح",
+    "expired": "انتهت صلاحية رمز التحقق",
+    "verified_success": "تم التحقق من الهاتف بنجاح",
+    "max_attempts": "محاولات كثيرة جداً. يرجى المحاولة مرة أخرى لاحقاً"
+  },
+  "profile": {
+    "updated_success": "تم تحديث الملف الشخصي بنجاح",
+    "update_failed": "فشل تحديث الملف الشخصي",
+    "not_found": "الملف الشخصي غير موجود",
+    "password_changed": "تم تغيير كلمة المرور بنجاح",
+    "invalid_old_password": "كلمة المرور الحالية غير صحيحة"
+  },
+  "workorder": {
+    "created_success": "تم إنشاء أمر العمل بنجاح",
+    "not_found": "أمر العمل غير موجود",
+    "assigned_success": "تم تعيين الفني بنجاح",
+    "accepted_success": "تم قبول أمر العمل",
+    "started_success": "تم بدء أمر العمل",
+    "completed_success": "تم إكمال أمر العمل",
+    "cancelled_success": "تم إلغاء أمر العمل",
+    "invalid_status": "حالة أمر العمل غير صالحة",
+    "already_assigned": "أمر العمل مُعين بالفعل",
+    "not_assigned": "أنت غير مُعين لأمر العمل هذا",
+    "gps_required": "موقع GPS مطلوب لبدء العمل"
+  },
+  "payment": {
+    "uploaded_success": "تم رفع إثبات الدفع بنجاح",
+    "verified_success": "تم التحقق من الدفع بنجاح",
+    "rejected_success": "تم رفض الدفع",
+    "not_found": "الدفع غير موجود",
+    "proof_required": "إثبات الدفع مطلوب",
+    "invalid_amount": "مبلغ الدفع غير صالح"
+  },
+  "commission": {
+    "payout_requested": "تم تقديم طلب السحب بنجاح",
+    "payout_approved": "تمت الموافقة على السحب",
+    "payout_rejected": "تم رفض طلب السحب",
+    "insufficient_balance": "رصيد المحفظة غير كافٍ",
+    "invalid_amount": "مبلغ السحب غير صالح"
+  },
+  "notification": {
+    "marked_read": "تم وضع علامة مقروء على الإشعار",
+    "all_marked_read": "تم وضع علامة مقروء على جميع الإشعارات",
+    "not_found": "الإشعار غير موجود"
+  },
+  "errors": {
+    "server_error": "خطأ داخلي في الخادم",
+    "validation_error": "خطأ في التحقق",
+    "not_found": "المورد غير موجود",
+    "forbidden": "الوصول محظور",
+    "bad_request": "طلب غير صالح"
+  },
+  "status": {
+    "PENDING_APPROVAL": "في انتظار الموافقة",
+    "ACTIVE": "نشط",
+    "COMPLETED": "مكتمل",
+    "CANCELLED": "ملغى",
+    "ASSIGNED": "مُعين",
+    "ACCEPTED": "مقبول",
+    "IN_PROGRESS": "قيد التنفيذ",
+    "PAID_VERIFIED": "مدفوع ومُتحقق منه",
+    "ONLINE": "متصل",
+    "OFFLINE": "غير متصل",
+    "BUSY": "مشغول"
+  },
+  "priority": {
+    "LOW": "منخفض",
+    "MEDIUM": "متوسط",
+    "HIGH": "عالي",
+    "URGENT": "عاجل"
+  }
+}

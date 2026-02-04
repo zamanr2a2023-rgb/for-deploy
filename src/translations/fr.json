@@ -1,0 +1,87 @@
+{
+  "auth": {
+    "login_success": "Connexion réussie",
+    "login_failed": "Téléphone ou mot de passe invalide",
+    "logout_success": "Déconnexion réussie",
+    "phone_required": "Le numéro de téléphone est requis",
+    "password_required": "Le mot de passe est requis",
+    "account_blocked": "Votre compte a été bloqué",
+    "invalid_credentials": "Identifiants invalides",
+    "token_expired": "Session expirée. Veuillez vous reconnecter",
+    "unauthorized": "Accès non autorisé"
+  },
+  "otp": {
+    "sent_success": "OTP envoyé avec succès",
+    "send_failed": "Échec de l'envoi de l'OTP",
+    "invalid_code": "Code OTP invalide",
+    "expired": "L'OTP a expiré",
+    "verified_success": "Téléphone vérifié avec succès",
+    "max_attempts": "Trop de tentatives. Veuillez réessayer plus tard"
+  },
+  "profile": {
+    "updated_success": "Profil mis à jour avec succès",
+    "update_failed": "Échec de la mise à jour du profil",
+    "not_found": "Profil introuvable",
+    "password_changed": "Mot de passe modifié avec succès",
+    "invalid_old_password": "Le mot de passe actuel est incorrect"
+  },
+  "workorder": {
+    "created_success": "Bon de travail créé avec succès",
+    "not_found": "Bon de travail introuvable",
+    "assigned_success": "Technicien assigné avec succès",
+    "accepted_success": "Bon de travail accepté",
+    "started_success": "Bon de travail commencé",
+    "completed_success": "Bon de travail terminé",
+    "cancelled_success": "Bon de travail annulé",
+    "invalid_status": "Statut du bon de travail invalide",
+    "already_assigned": "Bon de travail déjà assigné",
+    "not_assigned": "Vous n'êtes pas assigné à ce bon de travail",
+    "gps_required": "La localisation GPS est requise pour commencer le travail"
+  },
+  "payment": {
+    "uploaded_success": "Preuve de paiement téléchargée avec succès",
+    "verified_success": "Paiement vérifié avec succès",
+    "rejected_success": "Paiement rejeté",
+    "not_found": "Paiement introuvable",
+    "proof_required": "Une preuve de paiement est requise",
+    "invalid_amount": "Montant de paiement invalide"
+  },
+  "commission": {
+    "payout_requested": "Demande de paiement soumise avec succès",
+    "payout_approved": "Paiement approuvé",
+    "payout_rejected": "Demande de paiement rejetée",
+    "insufficient_balance": "Solde du portefeuille insuffisant",
+    "invalid_amount": "Montant de paiement invalide"
+  },
+  "notification": {
+    "marked_read": "Notification marquée comme lue",
+    "all_marked_read": "Toutes les notifications marquées comme lues",
+    "not_found": "Notification introuvable"
+  },
+  "errors": {
+    "server_error": "Erreur interne du serveur",
+    "validation_error": "Erreur de validation",
+    "not_found": "Ressource introuvable",
+    "forbidden": "Accès interdit",
+    "bad_request": "Mauvaise requête"
+  },
+  "status": {
+    "PENDING_APPROVAL": "En attente d'approbation",
+    "ACTIVE": "Actif",
+    "COMPLETED": "Terminé",
+    "CANCELLED": "Annulé",
+    "ASSIGNED": "Assigné",
+    "ACCEPTED": "Accepté",
+    "IN_PROGRESS": "En cours",
+    "PAID_VERIFIED": "Payé et vérifié",
+    "ONLINE": "En ligne",
+    "OFFLINE": "Hors ligne",
+    "BUSY": "Occupé"
+  },
+  "priority": {
+    "LOW": "Faible",
+    "MEDIUM": "Moyen",
+    "HIGH": "Élevé",
+    "URGENT": "Urgent"
+  }
+}

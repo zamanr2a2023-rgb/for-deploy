@@ -1,0 +1,540 @@
+{
+  "info": {
+    "_postman_id": "fsm-fixes-2026-01-21",
+    "name": "FSM Backend Fixes - Jan 21, 2026",
+    "description": "Collection of all fixed/new endpoints from the January 21, 2026 bug fixes",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dispatcherToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "technicianToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01. Authentication",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('adminToken', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"1111111111\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Technician Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('technicianToken', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"5555555555\",\n  \"password\": \"tech123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02. Call Center Stats (FIX #2)",
+      "item": [
+        {
+          "name": "Get Call Center Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/call-center/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["call-center", "stats"]
+            },
+            "description": "Returns correct stats:\n- pendingSRs: NEW + OPEN status\n- inProgressWOs: IN_PROGRESS work orders\n- resolvedWOs: PAID_VERIFIED work orders"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. Technician Locations (FIX #4, #7)",
+      "item": [
+        {
+          "name": "Get Technician Locations (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/technician-locations",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "technician-locations"]
+            },
+            "description": "Returns technicians with proper displayStatus (ONLINE/BUSY/OFFLINE) using lastLatitude/lastLongitude"
+          }
+        },
+        {
+          "name": "Get Dispatch Technician Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/technician-status",
+              "host": ["{{baseUrl}}"],
+              "path": ["dispatch", "technician-status"]
+            },
+            "description": "Returns correct counts including offlineTechnicians (NULL + OFFLINE)"
+          }
+        },
+        {
+          "name": "Technician Set Status (NEW)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{technicianToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ONLINE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/location/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["location", "status"]
+            },
+            "description": "Technician can set their availability status: ONLINE, OFFLINE, or BUSY"
+          }
+        },
+        {
+          "name": "Technician Update Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{technicianToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 23.8103,\n  \"longitude\": 90.4125\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/location/update",
+              "host": ["{{baseUrl}}"],
+              "path": ["location", "update"]
+            },
+            "description": "Updates location and auto-sets status to ONLINE"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. Commission Rates (FIX #5)",
+      "item": [
+        {
+          "name": "Get Freelancer Default Rate (Dispatcher)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dispatcherToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rates/default/FREELANCER",
+              "host": ["{{baseUrl}}"],
+              "path": ["rates", "default", "FREELANCER"]
+            },
+            "description": "Dispatcher can now access commission rates (previously ADMIN only)"
+          }
+        },
+        {
+          "name": "Get Internal Default Rate (Dispatcher)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{dispatcherToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rates/default/INTERNAL",
+              "host": ["{{baseUrl}}"],
+              "path": ["rates", "default", "INTERNAL"]
+            },
+            "description": "Dispatcher can now access commission rates (previously ADMIN only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05. Payment Stats (FIX #6)",
+      "item": [
+        {
+          "name": "Get Payment Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "stats"]
+            },
+            "description": "Stats now match the filtered list count (removed extra proofUrl condition)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. Dispatch Statistics (FIX #8)",
+      "item": [
+        {
+          "name": "Get Technician Status Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/technicians/status-summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "technicians", "status-summary"]
+            },
+            "description": "Returns mutually exclusive categories:\n- blocked + online + busy + offline = total"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07. Password Reset (FIX #9 - NEW)",
+      "item": [
+        {
+          "name": "Reset User Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newPassword\": \"newPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/40/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", "40", "reset-password"]
+            },
+            "description": "Admin can reset any user's password. Creates audit log."
+          }
+        }
+      ]
+    },
+    {
+      "name": "08. Category Deletion (FIX #10)",
+      "item": [
+        {
+          "name": "Delete Category (Check Dependencies)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories/15",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", "15"]
+            },
+            "description": "Returns 409 if category has dependencies with details"
+          }
+        },
+        {
+          "name": "Delete Category (Force Cascade)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories/15?force=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", "15"],
+              "query": [
+                {
+                  "key": "force",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Force deletes category and all dependent records (services, work orders, etc.)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09. Payout Batches (FIX #11, #12)",
+      "item": [
+        {
+          "name": "Get Payout Batches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payouts/batches",
+              "host": ["{{baseUrl}}"],
+              "path": ["payouts", "batches"]
+            },
+            "description": "List all payout batches"
+          }
+        },
+        {
+          "name": "Get Payout Batch Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payouts/batches/5",
+              "host": ["{{baseUrl}}"],
+              "path": ["payouts", "batches", "5"]
+            },
+            "description": "Get batch with full commission breakdown"
+          }
+        },
+        {
+          "name": "Mark Batch as Paid (NEW)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentReference\": \"TXN123456\",\n  \"paymentMethod\": \"Bank Transfer\",\n  \"notes\": \"Paid via company bank account\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payouts/batches/5/mark-paid",
+              "host": ["{{baseUrl}}"],
+              "path": ["payouts", "batches", "5", "mark-paid"]
+            },
+            "description": "Mark batch as PAID after external payment confirmation"
+          }
+        },
+        {
+          "name": "Process Payout Batch",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payouts/batches/5/process",
+              "host": ["{{baseUrl}}"],
+              "path": ["payouts", "batches", "5", "process"]
+            },
+            "description": "Auto-process batch with wallet deduction"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Early Payout (FIX #13)",
+      "item": [
+        {
+          "name": "Get Early Payout Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payouts/early-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["payouts", "early-requests"]
+            },
+            "description": "List pending early payout requests"
+          }
+        },
+        {
+          "name": "Approve Early Payout",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payouts/early-requests/30/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["payouts", "early-requests", "30", "approve"]
+            },
+            "description": "Approve early payout - now only checks wallet balance (removed redundant commission check)"
+          }
+        },
+        {
+          "name": "Reject Early Payout",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Insufficient documentation\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payouts/early-requests/30/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["payouts", "early-requests", "30", "reject"]
+            },
+            "description": "Reject early payout request with reason"
+          }
+        }
+      ]
+    }
+  ]
+}

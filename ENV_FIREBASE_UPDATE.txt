@@ -1,0 +1,14 @@
+# .env File Firebase Section - Update করুন এইভাবে:
+
+FIREBASE_PROJECT_ID="ibacos-services"
+FIREBASE_CLIENT_EMAIL="firebase-adminsdk-xxxxx@ibacos-services.iam.gserviceaccount.com"
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n[Firebase Console থেকে download করা JSON file এর private_key field এখানে paste করুন]\n-----END PRIVATE KEY-----\n"
+
+# ⚠️ Important:
+# 1. Project ID = "ibacos-services" (com.ibacos.services নয়!)
+# 2. Client Email = Firebase Console থেকে service account email
+# 3. Private Key = Firebase Console থেকে download করা JSON file এর private_key
+
+# Firebase Console Link:
+# https://console.firebase.google.com/project/ibacos-services/settings/serviceaccounts/adminsdk
+

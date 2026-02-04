@@ -1,0 +1,87 @@
+{
+  "auth": {
+    "login_success": "Login successful",
+    "login_failed": "Invalid phone or password",
+    "logout_success": "Logged out successfully",
+    "phone_required": "Phone number is required",
+    "password_required": "Password is required",
+    "account_blocked": "Your account has been blocked",
+    "invalid_credentials": "Invalid credentials",
+    "token_expired": "Session expired. Please login again",
+    "unauthorized": "Unauthorized access"
+  },
+  "otp": {
+    "sent_success": "OTP sent successfully",
+    "send_failed": "Failed to send OTP",
+    "invalid_code": "Invalid OTP code",
+    "expired": "OTP has expired",
+    "verified_success": "Phone verified successfully",
+    "max_attempts": "Too many attempts. Please try again later"
+  },
+  "profile": {
+    "updated_success": "Profile updated successfully",
+    "update_failed": "Failed to update profile",
+    "not_found": "Profile not found",
+    "password_changed": "Password changed successfully",
+    "invalid_old_password": "Current password is incorrect"
+  },
+  "workorder": {
+    "created_success": "Work order created successfully",
+    "not_found": "Work order not found",
+    "assigned_success": "Technician assigned successfully",
+    "accepted_success": "Work order accepted",
+    "started_success": "Work order started",
+    "completed_success": "Work order completed",
+    "cancelled_success": "Work order cancelled",
+    "invalid_status": "Invalid work order status",
+    "already_assigned": "Work order already assigned",
+    "not_assigned": "You are not assigned to this work order",
+    "gps_required": "GPS location is required to start work"
+  },
+  "payment": {
+    "uploaded_success": "Payment proof uploaded successfully",
+    "verified_success": "Payment verified successfully",
+    "rejected_success": "Payment rejected",
+    "not_found": "Payment not found",
+    "proof_required": "Payment proof is required",
+    "invalid_amount": "Invalid payment amount"
+  },
+  "commission": {
+    "payout_requested": "Payout request submitted successfully",
+    "payout_approved": "Payout approved",
+    "payout_rejected": "Payout request rejected",
+    "insufficient_balance": "Insufficient wallet balance",
+    "invalid_amount": "Invalid payout amount"
+  },
+  "notification": {
+    "marked_read": "Notification marked as read",
+    "all_marked_read": "All notifications marked as read",
+    "not_found": "Notification not found"
+  },
+  "errors": {
+    "server_error": "Internal server error",
+    "validation_error": "Validation error",
+    "not_found": "Resource not found",
+    "forbidden": "Access forbidden",
+    "bad_request": "Bad request"
+  },
+  "status": {
+    "PENDING_APPROVAL": "Pending Approval",
+    "ACTIVE": "Active",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled",
+    "ASSIGNED": "Assigned",
+    "ACCEPTED": "Accepted",
+    "IN_PROGRESS": "In Progress",
+    "PAID_VERIFIED": "Paid & Verified",
+    "ONLINE": "Online",
+    "OFFLINE": "Offline",
+    "BUSY": "Busy"
+  },
+  "priority": {
+    "LOW": "Low",
+    "MEDIUM": "Medium",
+    "HIGH": "High",
+    "URGENT": "Urgent"
+  }
+}

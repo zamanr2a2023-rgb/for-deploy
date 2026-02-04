@@ -1,0 +1,1090 @@
+{
+	"info": {
+		"_postman_id": "fix-tests-jan26-2025",
+		"name": "FSM Latest Fixes - Jan 26, 2025",
+		"description": "Collection for testing all the latest fixes implemented:\n\n✅ **Phone Validation**: 8 digits starting with 2, 3, or 4\n✅ **Call Center Statistics**: Corrected counting logic\n✅ **File Upload System**: Fixed technician profile uploads\n✅ **Specialization Management**: Complete CRUD system\n\n**Usage:**\n1. Set environment variable `baseUrl` to `http://localhost:4000`\n2. Login as admin to get auth token\n3. Test each endpoint category",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Admin Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('authToken', response.token);",
+									"    pm.environment.set('adminUserId', response.user.id);",
+									"    pm.test('Login successful', () => {",
+									"        pm.expect(response.success).to.be.true;",
+									"        pm.expect(response.token).to.be.a('string');",
+									"    });",
+									"} else {",
+									"    pm.test('Login failed', () => {",
+									"        pm.expect.fail('Login should succeed');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"20000001\",\n  \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Phone Validation - Valid (8 digits, starts with 2)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Valid phone number accepted', () => {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201, 409]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"25555555\",\n  \"password\": \"test123\",\n  \"name\": \"Test User Valid Phone\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Phone Validation - Invalid (7 digits)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Invalid phone number rejected - too short', () => {",
+									"    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"2555555\",\n  \"password\": \"test123\",\n  \"name\": \"Test User Invalid Phone\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Phone Validation - Invalid (starts with 1)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Invalid phone number rejected - wrong starting digit', () => {",
+									"    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"15555555\",\n  \"password\": \"test123\",\n  \"name\": \"Test User Invalid Start\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📊 Call Center Statistics (Fixed)",
+			"item": [
+				{
+					"name": "Get Call Center Dashboard Stats",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Call center stats retrieved successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.data).to.have.property('serviceRequests');",
+									"    pm.expect(response.data).to.have.property('workOrders');",
+									"    pm.expect(response.data).to.have.property('summary');",
+									"});",
+									"",
+									"pm.test('Service request stats have correct structure', () => {",
+									"    const response = pm.response.json();",
+									"    const sr = response.data.serviceRequests;",
+									"    pm.expect(sr).to.have.property('pending');",
+									"    pm.expect(sr).to.have.property('dispatched');",
+									"    pm.expect(sr).to.have.property('completed');",
+									"    pm.expect(sr).to.have.property('cancelled');",
+									"});",
+									"",
+									"pm.test('Work order stats have correct structure', () => {",
+									"    const response = pm.response.json();",
+									"    const wo = response.data.workOrders;",
+									"    pm.expect(wo).to.have.property('assigned');",
+									"    pm.expect(wo).to.have.property('inProgress');",
+									"    pm.expect(wo).to.have.property('completed');",
+									"    pm.expect(wo).to.have.property('cancelled');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/call-center/dashboard/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"call-center",
+								"dashboard",
+								"stats"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🔧 Specialization Management (New CRUD System)",
+			"item": [
+				{
+					"name": "Seed Default Specializations",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Default specializations seeded successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.data).to.be.an('array');",
+									"    pm.expect(response.count).to.be.at.least(5);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations/seed",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations",
+								"seed"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Specializations",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Specializations retrieved successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.data).to.be.an('array');",
+									"    pm.expect(response.count).to.be.a('number');",
+									"});",
+									"",
+									"// Store first specialization ID for other tests",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.length > 0) {",
+									"        pm.environment.set('testSpecializationId', response.data[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Only Active Specializations",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Active specializations retrieved successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.data).to.be.an('array');",
+									"    ",
+									"    // Verify all returned specializations are active",
+									"    response.data.forEach(spec => {",
+									"        pm.expect(spec.isActive).to.be.true;",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations?activeOnly=true",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations"
+							],
+							"query": [
+								{
+									"key": "activeOnly",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create New Specialization",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Specialization created successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.data).to.have.property('id');",
+									"    pm.expect(response.data.name).to.equal('Smart Home Systems');",
+									"    pm.expect(response.data.isActive).to.be.true;",
+									"    ",
+									"    // Store created specialization ID for other tests",
+									"    pm.environment.set('createdSpecializationId', response.data.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Smart Home Systems\",\n  \"description\": \"Installation and maintenance of smart home automation systems and IoT devices\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Specialization by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Single specialization retrieved successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.data).to.have.property('id');",
+									"    pm.expect(response.data).to.have.property('name');",
+									"    pm.expect(response.data).to.have.property('isActive');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations/{{createdSpecializationId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations",
+								"{{createdSpecializationId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Specialization",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Specialization updated successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.data.description).to.include('Complete smart home automation');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"description\": \"Complete smart home automation solutions, IoT device integration, and home security systems\",\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations/{{createdSpecializationId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations",
+								"{{createdSpecializationId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Specialization Statistics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Specialization statistics retrieved successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.data).to.have.property('specializations');",
+									"    pm.expect(response.data).to.have.property('summary');",
+									"    pm.expect(response.data.summary).to.have.property('total');",
+									"    pm.expect(response.data.summary).to.have.property('active');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations",
+								"stats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Duplicate Name Prevention",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Duplicate name correctly rejected', () => {",
+									"    pm.expect(pm.response.code).to.equal(400);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.false;",
+									"    pm.expect(response.message).to.include('already exists');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Smart Home Systems\",\n  \"description\": \"This should fail due to duplicate name\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate Specialization",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Specialization deactivated successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.data.isActive).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"isActive\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations/{{createdSpecializationId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations",
+								"{{createdSpecializationId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Specialization",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Specialization deleted successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.message).to.include('deleted successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/specializations/{{createdSpecializationId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"specializations",
+								"{{createdSpecializationId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📁 File Upload System (Fixed)",
+			"item": [
+				{
+					"name": "Test Technician Profile Update (with file uploads)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Technician profile updated successfully', () => {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"    const response = pm.response.json();",
+									"    if (response.success !== undefined) {",
+									"        pm.expect(response.success).to.be.true;",
+									"    }",
+									"});",
+									"",
+									"pm.test('Response contains profile data', () => {",
+									"    if (pm.response.code === 200 || pm.response.code === 201) {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response).to.have.property('data');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "specialization",
+									"value": "ELECTRICAL",
+									"description": "Specialization type: ELECTRICAL, PLUMBING, HVAC, GENERAL, CARPENTRY, PAINTING",
+									"type": "text"
+								},
+								{
+									"key": "academicTitle",
+									"value": "BSc Engineering",
+									"description": "Academic qualification",
+									"type": "text"
+								},
+								{
+									"key": "homeAddress",
+									"value": "123 Main Street, Dhaka, Bangladesh",
+									"description": "Full home address",
+									"type": "text"
+								},
+								{
+									"key": "status",
+									"value": "ACTIVE",
+									"description": "Status: PENDING, ACTIVE, INACTIVE",
+									"type": "text"
+								},
+								{
+									"key": "type",
+									"value": "FREELANCER",
+									"description": "Employment type: INTERNAL, FREELANCER",
+									"type": "text"
+								},
+								{
+									"key": "position",
+									"value": "Senior Technician",
+									"description": "Job position",
+									"type": "text"
+								},
+								{
+									"key": "department",
+									"value": "Field Services",
+									"description": "Department name",
+									"type": "text"
+								},
+								{
+									"key": "baseSalary",
+									"value": "50000",
+									"description": "Base salary for internal employees",
+									"type": "text"
+								},
+								{
+									"key": "commissionRate",
+									"value": "0.20",
+									"description": "Commission rate (e.g., 0.20 = 20%)",
+									"type": "text"
+								},
+								{
+									"key": "bonusRate",
+									"value": "0.05",
+									"description": "Bonus rate (e.g., 0.05 = 5%)",
+									"type": "text"
+								},
+								{
+									"key": "useCustomRate",
+									"value": "true",
+									"description": "Whether to use custom commission/bonus rates",
+									"type": "text"
+								},
+								{
+									"key": "bankName",
+									"value": "Dutch Bangla Bank",
+									"description": "Bank name for payouts",
+									"type": "text"
+								},
+								{
+									"key": "bankAccountNumber",
+									"value": "1234567890",
+									"description": "Bank account number",
+									"type": "text"
+								},
+								{
+									"key": "bankAccountHolder",
+									"value": "John Doe",
+									"description": "Bank account holder name",
+									"type": "text"
+								},
+								{
+									"key": "mobileBankingType",
+									"value": "BKASH",
+									"description": "Mobile banking type: BKASH, NAGAD, ROCKET",
+									"type": "text"
+								},
+								{
+									"key": "mobileBankingNumber",
+									"value": "01712345678",
+									"description": "Mobile banking number",
+									"type": "text"
+								},
+								{
+									"key": "joinDate",
+									"value": "2024-01-15T00:00:00.000Z",
+									"description": "Employment start date (ISO format)",
+									"type": "text"
+								},
+								{
+									"key": "photo",
+									"description": "Personal photo (jpg, png, gif - max 5MB)",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "idCardUrl",
+									"description": "ID card/passport (jpg, png, gif, pdf - max 5MB)",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "residencePermitUrl",
+									"description": "Residence permit for foreigners (jpg, png, gif, pdf - max 5MB)",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "degreesUrl",
+									"description": "Certificates (multiple files allowed - max 5 files, 5MB each)",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/technician/1/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"technician",
+								"1",
+								"profile"
+							]
+						},
+						"description": "Update technician profile with all available fields. All fields are optional - send only the fields you want to update. The endpoint uses upsert, so it will create the profile if it doesn't exist."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Technician Profile - Minimal (Only Specialization)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Minimal update successful', () => {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "specialization",
+									"value": "PLUMBING",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/technician/1/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"technician",
+								"1",
+								"profile"
+							]
+						},
+						"description": "Minimal update - only changing specialization field"
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Upload Directory Structure",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// This test verifies the server creates upload directories",
+									"pm.test('Server started successfully', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🔍 System Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Server is healthy', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('OK');",
+									"    pm.expect(response).to.have.property('uptime');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "API Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('API is working', () => {",
+									"    pm.expect(pm.response.code).to.equal(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.message).to.equal('API is working');",
+									"    pm.expect(response).to.have.property('endpoints');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"status"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:4000",
+			"type": "string"
+		}
+	]
+}

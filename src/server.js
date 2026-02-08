@@ -8,6 +8,7 @@ try {
 } catch (error) {
   console.error("❌ Failed to initialize Firebase:", error);
 }
+const host = "103.208.183.248" || "0.0.0.0";
 
 const startServer = async () => {
   const PORT = Number(process.env.PORT) || 5000;
@@ -21,7 +22,7 @@ const startServer = async () => {
     console.warn("⚠️ DB check threw error, starting server anyway:", e?.message);
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  app.listen(PORT, host, () => {
     console.log(`🚀 FSM Server running on port ${PORT}`);
   });
 };

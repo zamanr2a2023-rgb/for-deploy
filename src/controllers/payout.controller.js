@@ -660,14 +660,15 @@ export const markBatchPaid = async (req, res, next) => {
       });
     }
 
-    // Create audit log
+    // Create audit log (use user relation and metadataJson; AuditLog has no details field)
+    const auditDetails = `Marked payout batch #${payout.id} as paid for ${payout.technician?.name}. Amount: ${payout.totalAmount}${paymentReference ? `. Reference: ${paymentReference}` : ""}${notes ? `. Notes: ${notes}` : ""}`;
     await prisma.auditLog.create({
       data: {
-        userId: adminId,
+        ...(adminId && { user: { connect: { id: adminId } } }),
         action: "PAYOUT_MARKED_PAID",
         entityType: "PAYOUT",
         entityId: payout.id,
-        details: `Marked payout batch #${payout.id} as paid for ${payout.technician?.name}. Amount: ${payout.totalAmount}${paymentReference ? `. Reference: ${paymentReference}` : ""}${notes ? `. Notes: ${notes}` : ""}`,
+        metadataJson: JSON.stringify({ details: auditDetails }),
       },
     });
 

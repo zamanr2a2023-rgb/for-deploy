@@ -241,6 +241,29 @@ export const updateRateStructure = async (req, res, next) => {
       data: updateData,
     });
 
+    // When a default rate is updated or this structure is set as default, propagate to profiles with useCustomRate: false
+    const defaultRateChanged =
+      updated.isDefault &&
+      (updateData.rate !== undefined || (isDefault && !existing.isDefault));
+    if (defaultRateChanged) {
+      const profileType =
+        updated.techType === "FREELANCER" ? "FREELANCER" : "INTERNAL";
+      const field =
+        updated.type === "COMMISSION" ? "commissionRate" : "bonusRate";
+      const { count } = await prisma.technicianProfile.updateMany({
+        where: {
+          type: profileType,
+          useCustomRate: false,
+        },
+        data: { [field]: updated.rate },
+      });
+      if (count > 0) {
+        console.log(
+          `✅ Updated ${count} ${profileType} profile(s) with new default ${field}: ${(updated.rate * 100).toFixed(0)}%`
+        );
+      }
+    }
+
     return res.json({
       message: "Rate structure updated successfully",
       rate: {

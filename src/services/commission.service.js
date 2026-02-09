@@ -5,6 +5,7 @@ import { prisma } from "../prisma.js";
 import { notifyCommissionPaid } from "./notification.service.js";
 
 // auto commission / bonus after WO PAID_VERIFIED
+// Commission = (total verified payment amount for the WO) × rate. Same for internal (bonus).
 export const createCommissionForWO = async (woId, paymentId) => {
   const wo = await prisma.workOrder.findUnique({
     where: { id: woId },
@@ -18,14 +19,12 @@ export const createCommissionForWO = async (woId, paymentId) => {
 
   if (!wo || !wo.technician) return;
 
-  // avoid duplicate
-  const existing = await prisma.commission.findFirst({
-    where: { woId },
-  });
-  if (existing) return;
+  // Base amount = total of ALL VERIFIED payments for this work order (e.g. $300 job → commission on $300)
+  const totalVerifiedAmount = wo.payments
+    .filter((p) => p.status === "VERIFIED")
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
 
-  const payment = wo.payments.find((p) => p.id === paymentId);
-  const amount = payment?.amount || 0;
+  if (totalVerifiedAmount <= 0) return;
 
   const techProfile = wo.technician.technicianProfile;
   if (!techProfile) return;
@@ -40,64 +39,88 @@ export const createCommissionForWO = async (woId, paymentId) => {
   const isFreelancer = techProfile.type === "FREELANCER";
   const type = isFreelancer ? "COMMISSION" : "BONUS";
 
-  // Get the rate with proper priority based on useCustomRate flag
+  // Get the rate with proper priority: useCustomRate=true → profile rate; useCustomRate=false → profile rate (kept in sync with default from RateStructure/SystemConfig)
   let rate;
   if (isFreelancer) {
-    // For freelancers: Check useCustomRate flag first
-    if (techProfile.useCustomRate === true) {
-      // Use individual technician rate
-      rate = techProfile.commissionRate || 0.05;
-    } else if (
-      systemConfig?.freelancerCommissionRate !== undefined &&
-      systemConfig?.freelancerCommissionRate !== null
+    if (
+      techProfile.useCustomRate === true &&
+      techProfile.commissionRate != null
     ) {
-      // Use system config rate
-      rate = systemConfig.freelancerCommissionRate;
+      rate = techProfile.commissionRate;
     } else {
-      // Fallback to default
-      rate = 0.05;
+      // Profile rate is kept in sync with default when useCustomRate=false
+      rate =
+        techProfile.commissionRate ??
+        systemConfig?.freelancerCommissionRate ??
+        0.05;
     }
   } else {
-    // For internal: Check useCustomRate flag first
-    if (techProfile.useCustomRate === true) {
-      // Use individual technician bonus rate
-      rate = techProfile.bonusRate || 0.05;
-    } else if (
-      systemConfig?.internalEmployeeBonusRate !== undefined &&
-      systemConfig?.internalEmployeeBonusRate !== null
+    if (
+      techProfile.useCustomRate === true &&
+      techProfile.bonusRate != null
     ) {
-      // Use system config rate
-      rate = systemConfig.internalEmployeeBonusRate;
+      rate = techProfile.bonusRate;
     } else {
-      // Fallback to default
-      rate = 0.05;
+      rate =
+        techProfile.bonusRate ??
+        systemConfig?.internalEmployeeBonusRate ??
+        0.05;
     }
   }
 
-  // Round to 2 decimal places to avoid floating-point precision issues
-  const commissionAmount = Math.round(amount * rate * 100) / 100;
+  const commissionAmount = Math.round(totalVerifiedAmount * rate * 100) / 100;
 
-  // Log calculation for debugging
   console.log(`📊 Commission Calculation for WO ${wo.woNumber}:`);
   console.log(
     `   Technician: ${wo.technician.name} (${
       isFreelancer ? "FREELANCER" : "INTERNAL"
     })`
   );
-  console.log(`   Payment Amount: ${amount}`);
-  console.log(`   Rate Used: ${rate} (${rate * 100}%)`);
+  console.log(`   Total Verified Payment Amount: ${totalVerifiedAmount}`);
+  console.log(`   Rate: ${rate} (${rate * 100}%)`);
   console.log(
-    `   Rate Source: ${
-      techProfile.useCustomRate
-        ? "Custom Rate (useCustomRate=true)"
-        : systemConfig?.freelancerCommissionRate ||
-          systemConfig?.internalEmployeeBonusRate
-        ? "System Config"
-        : "Default"
-    }`
+    `   Commission: ${totalVerifiedAmount} × ${rate} = ${commissionAmount}`
   );
-  console.log(`   useCustomRate: ${techProfile.useCustomRate}`);
-  console.log(`   Commission: ${amount} × ${rate} = ${commissionAmount}`);
+
+  const existing = await prisma.commission.findFirst({
+    where: { woId },
+  });
+
+  if (existing) {
+    const previousAmount = existing.amount;
+    const delta = commissionAmount - previousAmount;
+    if (delta === 0) return;
+
+    await prisma.commission.update({
+      where: { id: existing.id },
+      data: { amount: commissionAmount, rate },
+    });
+
+    let wallet = await prisma.wallet.findUnique({
+      where: { technicianId: wo.technicianId },
+    });
+    if (!wallet) {
+      wallet = await prisma.wallet.create({
+        data: { technicianId: wo.technicianId, balance: 0 },
+      });
+    }
+    await prisma.wallet.update({
+      where: { id: wallet.id },
+      data: { balance: { increment: delta } },
+    });
+    await prisma.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        technicianId: wo.technicianId,
+        type: "CREDIT",
+        sourceType: type,
+        sourceId: existing.id,
+        amount: delta,
+        description: `${type === "COMMISSION" ? "Commission" : "Bonus"} adjustment for WO ${wo.woNumber} (total verified amount updated)`,
+      },
+    });
+    return;
+  }
 
   const commission = await prisma.commission.create({
     data: {

@@ -136,14 +136,21 @@ export const setPasswordAfterOTP = async (userData) => {
     });
 
     if (!existingProfile) {
+      const techType =
+        user.role === "TECH_FREELANCER" ? "FREELANCER" : "INTERNAL";
+      const defaults =
+        await import("./defaultRates.service.js").then((m) =>
+          m.getDefaultRatesForNewTechnician(techType)
+        );
       await prisma.technicianProfile.create({
         data: {
           userId: user.id,
-          type: user.role === "TECH_FREELANCER" ? "FREELANCER" : "INTERNAL",
-          commissionRate: 0.05, // Default 5%, will use system config when useCustomRate=false
-          bonusRate: 0.05, // Default 5%, will use system config when useCustomRate=false
-          useCustomRate: false, // New users use system default rates
-          baseSalary: user.role === "TECH_INTERNAL" ? 30000 : null,
+          type: techType,
+          commissionRate: defaults.commissionRate,
+          bonusRate: defaults.bonusRate,
+          useCustomRate: false,
+          baseSalary:
+            user.role === "TECH_INTERNAL" ? defaults.baseSalary : null,
           status: "ACTIVE",
         },
       });
@@ -764,55 +771,35 @@ export const getUserProfile = async (userId) => {
     const profile = user.technicianProfile;
     const isFreelancer = user.role === "TECH_FREELANCER";
 
-    // Get system config for global rates (admin configurable)
+    // Get system config for display (systemDefault* fields)
     const systemConfig = await prisma.systemConfig.findFirst({
       orderBy: { id: "asc" },
     });
 
-    // Commission rate logic (for freelancers)
-    // Priority:
-    // 1. If useCustomRate is true → use individual profile rate (admin explicitly set it)
-    // 2. Otherwise → use system config default rate
-    // 3. Fallback → hardcoded default 0.05
+    // Effective rates: when useCustomRate is true use profile; when false use current default (RateStructure → SystemConfig → 0.05)
+    const {
+      getDefaultCommissionRate,
+      getDefaultBonusRate,
+    } = await import("./defaultRates.service.js");
+
     let effectiveCommissionRate;
     let commissionRateUpdatedAt;
-    if (profile.useCustomRate && profile.commissionRate !== null) {
-      // Admin explicitly set a custom rate for this technician
+    if (profile.useCustomRate && profile.commissionRate != null) {
       effectiveCommissionRate = profile.commissionRate;
       commissionRateUpdatedAt = profile.updatedAt;
-    } else if (
-      systemConfig?.freelancerCommissionRate !== undefined &&
-      systemConfig?.freelancerCommissionRate !== null
-    ) {
-      // Use system-wide default rate
-      effectiveCommissionRate = systemConfig.freelancerCommissionRate;
-      commissionRateUpdatedAt = systemConfig.updatedAt;
     } else {
-      effectiveCommissionRate = 0.05;
-      commissionRateUpdatedAt = null;
+      effectiveCommissionRate = await getDefaultCommissionRate();
+      commissionRateUpdatedAt = systemConfig?.updatedAt ?? null;
     }
 
-    // Bonus rate logic (for internal employees)
-    // Priority:
-    // 1. If useCustomRate is true → use individual profile rate (admin explicitly set it)
-    // 2. Otherwise → use system config default rate
-    // 3. Fallback → hardcoded default 0.05
     let effectiveBonusRate;
     let bonusRateUpdatedAt;
-    if (profile.useCustomRate && profile.bonusRate !== null) {
-      // Admin explicitly set a custom rate for this technician
+    if (profile.useCustomRate && profile.bonusRate != null) {
       effectiveBonusRate = profile.bonusRate;
       bonusRateUpdatedAt = profile.updatedAt;
-    } else if (
-      systemConfig?.internalEmployeeBonusRate !== undefined &&
-      systemConfig?.internalEmployeeBonusRate !== null
-    ) {
-      // Use system-wide default rate
-      effectiveBonusRate = systemConfig.internalEmployeeBonusRate;
-      bonusRateUpdatedAt = systemConfig.updatedAt;
     } else {
-      effectiveBonusRate = 0.05;
-      bonusRateUpdatedAt = null;
+      effectiveBonusRate = await getDefaultBonusRate();
+      bonusRateUpdatedAt = systemConfig?.updatedAt ?? null;
     }
 
     const bonusRate = isFreelancer
@@ -855,28 +842,26 @@ export const getUserProfile = async (userId) => {
         totalJobs > 0 ? Math.round((priorityStats.high / totalJobs) * 100) : 0,
     };
 
+    // Current system defaults (RateStructure → SystemConfig) for comparison when useCustomRate is true
+    const systemDefaultCommission =
+      systemConfig?.freelancerCommissionRate ?? 0.05;
+    const systemDefaultBonus = systemConfig?.internalEmployeeBonusRate ?? 0.05;
+
     return {
       ...user,
       technicianProfile: {
         ...user.technicianProfile,
-        // Show effective commission rate (respects useCustomRate flag)
+        // Show effective rate (when useCustomRate false = current default from RateStructure/SystemConfig)
         commissionRate: effectiveCommissionRate,
         bonusRate: effectiveBonusRate,
-        // Add system default rate for comparison
-        systemDefaultCommissionRate:
-          systemConfig?.freelancerCommissionRate || 0.05,
-        systemDefaultBonusRate: systemConfig?.internalEmployeeBonusRate || 0.05,
-        // Add formatted percentages
+        systemDefaultCommissionRate: systemDefaultCommission,
+        systemDefaultBonusRate: systemDefaultBonus,
         commissionRatePercentage: `${(effectiveCommissionRate * 100).toFixed(
           1
         )}%`,
         bonusRatePercentage: `${(effectiveBonusRate * 100).toFixed(1)}%`,
-        systemDefaultCommissionPercentage: `${(
-          (systemConfig?.freelancerCommissionRate || 0.05) * 100
-        ).toFixed(1)}%`,
-        systemDefaultBonusPercentage: `${(
-          (systemConfig?.internalEmployeeBonusRate || 0.05) * 100
-        ).toFixed(1)}%`,
+        systemDefaultCommissionPercentage: `${(systemDefaultCommission * 100).toFixed(1)}%`,
+        systemDefaultBonusPercentage: `${(systemDefaultBonus * 100).toFixed(1)}%`,
         // Add updatedAt for rate changes
         rateUpdatedAt: rateUpdatedAt,
         skills, // Array of skills for UI

@@ -381,10 +381,13 @@ export const createTechnician = async (req, res, next) => {
         },
       });
 
-      // Default rates - always 5% for new users, they will use system config when useCustomRate=false
-      const defaultCommissionRate = 0.05;
-      const defaultBonusRate = 0.05;
-
+      // Default rates from RateStructure/SystemConfig when not provided
+      const { getDefaultRatesForNewTechnician } = await import(
+        "../services/defaultRates.service.js"
+      );
+      const defaultRates = await getDefaultRatesForNewTechnician(
+        type.toUpperCase() === "INTERNAL" ? "INTERNAL" : "FREELANCER"
+      );
       const profile = await tx.technicianProfile.create({
         data: {
           userId: user.id,
@@ -394,12 +397,17 @@ export const createTechnician = async (req, res, next) => {
           commissionRate:
             commissionRate !== undefined
               ? parseFloat(commissionRate)
-              : defaultCommissionRate,
+              : defaultRates.commissionRate,
           bonusRate:
-            bonusRate !== undefined ? parseFloat(bonusRate) : defaultBonusRate,
+            bonusRate !== undefined
+              ? parseFloat(bonusRate)
+              : defaultRates.bonusRate,
           useCustomRate:
-            commissionRate !== undefined || bonusRate !== undefined, // Only true if custom rates provided
-          baseSalary: baseSalary ? parseFloat(baseSalary) : 0,
+            commissionRate !== undefined || bonusRate !== undefined,
+          baseSalary:
+            baseSalary !== undefined && baseSalary !== null && baseSalary !== ""
+              ? parseFloat(baseSalary)
+              : defaultRates.baseSalary ?? 0,
           academicTitle,
           position: position || undefined,
           department: department || undefined,

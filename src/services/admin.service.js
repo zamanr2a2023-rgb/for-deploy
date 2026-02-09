@@ -243,20 +243,34 @@ export const createUserWithProfile = async (userData, adminId) => {
       );
     }
 
+    const techType = role === "TECH_INTERNAL" ? "INTERNAL" : "FREELANCER";
+    const { getDefaultRatesForNewTechnician } = await import(
+      "./defaultRates.service.js"
+    );
+    const defaultRates = await getDefaultRatesForNewTechnician(techType);
+    const hasCustomRates =
+      technicianProfile?.commissionRate !== undefined ||
+      technicianProfile?.bonusRate !== undefined ||
+      technicianProfile?.baseSalary !== undefined;
+
     await prisma.technicianProfile.create({
       data: {
         userId: user.id,
-        type: role === "TECH_INTERNAL" ? "INTERNAL" : "FREELANCER",
+        type: techType,
         specialization: specialization,
-        commissionRate: technicianProfile?.commissionRate || 0.05, // Default 5%
-        bonusRate: technicianProfile?.bonusRate || 0.05, // Default 5%
+        commissionRate:
+          technicianProfile?.commissionRate ?? defaultRates.commissionRate,
+        bonusRate: technicianProfile?.bonusRate ?? defaultRates.bonusRate,
         useCustomRate:
           technicianProfile?.useCustomRate !== undefined
             ? technicianProfile.useCustomRate
-            : false, // New users use system default
+            : hasCustomRates,
         baseSalary:
-          technicianProfile?.baseSalary ||
-          (role === "TECH_INTERNAL" ? 0 : null),
+          technicianProfile?.baseSalary !== undefined
+            ? technicianProfile.baseSalary
+            : role === "TECH_INTERNAL"
+              ? defaultRates.baseSalary
+              : null,
         status: technicianProfile?.status || "ACTIVE",
         academicTitle: technicianProfile?.academicTitle || null,
         photoUrl: technicianProfile?.photoUrl || null,

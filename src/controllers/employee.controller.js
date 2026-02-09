@@ -200,16 +200,20 @@ export const completeEmployeeRegistration = async (req, res, next) => {
       data: { isUsed: true },
     });
 
-    // Create technician profile with employee details
+    // Create technician profile with employee details (default rates from RateStructure/SystemConfig)
+    const { getDefaultRatesForNewTechnician } = await import(
+      "../services/defaultRates.service.js"
+    );
+    const defaults = await getDefaultRatesForNewTechnician("INTERNAL");
     await prisma.technicianProfile.create({
       data: {
         userId: result.user.id,
         type: "INTERNAL",
-        commissionRate: 0.05, // Default 5%, will use system config when useCustomRate=false
-        bonusRate: 0.05, // Default 5%, will use system config when useCustomRate=false
-        useCustomRate: false, // New employees use system default rates
+        commissionRate: defaults.commissionRate,
+        bonusRate: defaults.bonusRate,
+        useCustomRate: false,
+        baseSalary: defaults.baseSalary,
         status: "ACTIVE",
-        // Store employeeId in metadata or add a field to schema
         specialization: `Employee ID: ${employeeData.employeeId}`,
       },
     });

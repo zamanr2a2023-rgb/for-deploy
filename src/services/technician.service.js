@@ -349,41 +349,28 @@ export const getTechnicianEarnings = async (technicianId) => {
   const profile = technician.technicianProfile;
   const isFreelancer = technician.role === "TECH_FREELANCER";
 
-  // Get system config for global rates (admin configurable)
   const systemConfig = await prisma.systemConfig.findFirst({
     orderBy: { id: "asc" },
   });
 
-  // Priority:
-  // 1. If useCustomRate is true → use individual profile rate (admin explicitly set it)
-  // 2. Otherwise → use system config default rate
-  // 3. Fallback → hardcoded default 0.05
+  // Effective rate: useCustomRate true → profile rate; false → current default (RateStructure → SystemConfig → 0.05)
+  const {
+    getDefaultCommissionRate,
+    getDefaultBonusRate,
+  } = await import("./defaultRates.service.js");
+
   let commissionRate;
-  if (profile.useCustomRate && profile.commissionRate !== null) {
-    // Admin explicitly set a custom rate for this technician
+  if (profile.useCustomRate && profile.commissionRate != null) {
     commissionRate = profile.commissionRate;
-  } else if (
-    systemConfig?.freelancerCommissionRate !== undefined &&
-    systemConfig?.freelancerCommissionRate !== null
-  ) {
-    // Use system-wide default rate
-    commissionRate = systemConfig.freelancerCommissionRate;
   } else {
-    commissionRate = 0.05;
+    commissionRate = await getDefaultCommissionRate();
   }
 
   let bonusRate;
-  if (profile.useCustomRate && profile.bonusRate !== null) {
-    // Admin explicitly set a custom rate for this technician
+  if (profile.useCustomRate && profile.bonusRate != null) {
     bonusRate = profile.bonusRate;
-  } else if (
-    systemConfig?.internalEmployeeBonusRate !== undefined &&
-    systemConfig?.internalEmployeeBonusRate !== null
-  ) {
-    // Use system-wide default rate
-    bonusRate = systemConfig.internalEmployeeBonusRate;
   } else {
-    bonusRate = 0.05;
+    bonusRate = await getDefaultBonusRate();
   }
 
   // Get all earnings aggregations in parallel

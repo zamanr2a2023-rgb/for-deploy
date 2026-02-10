@@ -29,6 +29,9 @@ export const createSR = async (req, res, next) => {
       email,
       phone,
       address,
+      streetAddress,
+      city,
+      landmark,
       latitude,
       longitude,
       categoryId,
@@ -284,6 +287,9 @@ export const createSR = async (req, res, next) => {
         description: finalDescription,
         priority: finalPriority,
         address,
+        streetAddress: streetAddress || null,
+        city: city || null,
+        landmark: landmark || null,
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
         paymentType: finalPaymentType,
@@ -313,15 +319,20 @@ export const createSR = async (req, res, next) => {
       },
     });
 
-    // Also save GPS coordinates to customer profile if provided
-    if (latitude && longitude && customerId) {
-      await prisma.user.update({
-        where: { id: customerId },
-        data: {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-        },
-      });
+    // Save address and GPS to customer (User) so homeAddress/location are persisted
+    if (customerId) {
+      const userUpdate = {};
+      if (address) userUpdate.homeAddress = address;
+      if (latitude != null && longitude != null) {
+        userUpdate.latitude = parseFloat(latitude);
+        userUpdate.longitude = parseFloat(longitude);
+      }
+      if (Object.keys(userUpdate).length > 0) {
+        await prisma.user.update({
+          where: { id: customerId },
+          data: userUpdate,
+        });
+      }
     }
 
     // Return SR with status, srId, and isGuest properties

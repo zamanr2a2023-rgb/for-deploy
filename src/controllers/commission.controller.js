@@ -219,6 +219,18 @@ export const requestPayout = async (req, res, next) => {
       return res.status(400).json({ message: "Amount is required" });
     }
 
+    // One pending request at a time: technician must wait for approve/reject before requesting again
+    const pendingRequest = await prisma.payoutRequest.findFirst({
+      where: { technicianId, status: "PENDING" },
+    });
+    if (pendingRequest) {
+      return res.status(400).json({
+        message:
+          "You already have a pending payout request. Wait for it to be approved or rejected before requesting again.",
+        pendingRequestId: pendingRequest.id,
+      });
+    }
+
     // Get technician profile to check bank account details
     const techProfile = await prisma.technicianProfile.findUnique({
       where: { userId: technicianId },

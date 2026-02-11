@@ -271,21 +271,22 @@ model WalletTransaction {
 }
 
 model Commission {
-  id           Int       @id @default(autoincrement())
-  woId         Int
-  technicianId Int
-  type         String
-  rate         Float
-  amount       Float
-  status       String
-  payoutId     Int?
-  paymentId    Int?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  payment      Payment?  @relation(fields: [paymentId], references: [id])
-  payout       Payout?   @relation(fields: [payoutId], references: [id])
-  technician   User      @relation(fields: [technicianId], references: [id])
-  workOrder    WorkOrder @relation(fields: [woId], references: [id])
+  id            Int       @id @default(autoincrement())
+  woId          Int
+  technicianId  Int
+  type          String
+  rate          Float
+  amount        Float
+  paidOutAmount Float     @default(0) // Allocated to early/partial payouts; remaining = amount - paidOutAmount
+  status        String
+  payoutId      Int?
+  paymentId     Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  payment       Payment?  @relation(fields: [paymentId], references: [id])
+  payout        Payout?   @relation(fields: [payoutId], references: [id])
+  technician    User      @relation(fields: [technicianId], references: [id])
+  workOrder     WorkOrder @relation(fields: [woId], references: [id])
 }
 
 model PayoutRequest {

@@ -353,6 +353,9 @@ export const getTechnicianEarnings = async (technicianId) => {
     orderBy: { id: "asc" },
   });
 
+  // Statuses that count as "earned" for total bonus and breakdown (include PENDING_PAYOUT so batch-scheduled commissions aren't excluded)
+  const EARNED_STATUSES = ["EARNED", "PENDING_PAYOUT", "PAID"];
+
   // Effective rate: useCustomRate true → profile rate; false → current default (RateStructure → SystemConfig → 0.05)
   const {
     getDefaultCommissionRate,
@@ -387,13 +390,14 @@ export const getTechnicianEarnings = async (technicianId) => {
     recentWithdrawals,
     totalWithdrawn,
     wallet,
+    pendingPayoutRequests,
   ] = await Promise.all([
     // Today
     prisma.commission.aggregate({
       where: {
         technicianId,
         createdAt: { gte: startOfDay },
-        status: { in: ["EARNED", "PAID"] },
+        status: { in: EARNED_STATUSES },
       },
       _sum: { amount: true },
     }),
@@ -403,7 +407,7 @@ export const getTechnicianEarnings = async (technicianId) => {
       where: {
         technicianId,
         createdAt: { gte: startOfWeek },
-        status: { in: ["EARNED", "PAID"] },
+        status: { in: EARNED_STATUSES },
       },
       _sum: { amount: true },
     }),
@@ -413,7 +417,7 @@ export const getTechnicianEarnings = async (technicianId) => {
       where: {
         technicianId,
         createdAt: { gte: startOfMonth },
-        status: { in: ["EARNED", "PAID"] },
+        status: { in: EARNED_STATUSES },
       },
       _sum: { amount: true },
     }),
@@ -423,16 +427,16 @@ export const getTechnicianEarnings = async (technicianId) => {
       where: {
         technicianId,
         createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
-        status: { in: ["EARNED", "PAID"] },
+        status: { in: EARNED_STATUSES },
       },
       _sum: { amount: true },
     }),
 
-    // Total All Time
+    // Total All Time (full amount for all earned/scheduled/paid commissions)
     prisma.commission.aggregate({
       where: {
         technicianId,
-        status: { in: ["EARNED", "PAID"] },
+        status: { in: EARNED_STATUSES },
       },
       _sum: { amount: true },
     }),
@@ -442,7 +446,7 @@ export const getTechnicianEarnings = async (technicianId) => {
       where: {
         technicianId,
         createdAt: { gte: startOfWeek },
-        status: { in: ["EARNED", "PAID"] },
+        status: { in: EARNED_STATUSES },
       },
     }),
 
@@ -450,7 +454,7 @@ export const getTechnicianEarnings = async (technicianId) => {
     prisma.commission.findMany({
       where: {
         technicianId,
-        status: { in: ["EARNED", "PAID"] },
+        status: { in: EARNED_STATUSES },
       },
       include: {
         workOrder: {
@@ -518,6 +522,14 @@ export const getTechnicianEarnings = async (technicianId) => {
     prisma.wallet.findUnique({
       where: { technicianId },
     }),
+    // Sum of PENDING early payout requests (to reserve from available amount)
+    prisma.payoutRequest.aggregate({
+      where: {
+        technicianId,
+        status: "PENDING",
+      },
+      _sum: { amount: true },
+    }),
   ]);
 
   const today = todayEarnings._sum.amount || 0;
@@ -525,9 +537,16 @@ export const getTechnicianEarnings = async (technicianId) => {
   const thisMonth = monthEarnings._sum.amount || 0;
   const lastMonth = lastMonthEarnings._sum.amount || 0;
   const totalAllTime = totalEarnings._sum.amount || 0;
-  // Use wallet balance as available amount (more accurate than summing EARNED commissions)
+  // Use wallet balance as base available amount, then reserve any PENDING payout requests
   const walletBalance = wallet?.balance || 0;
-  const availableAmount = walletBalance > 0 ? walletBalance : 0;
+  const pendingReserved = pendingPayoutRequests._sum.amount || 0;
+  const availableAmount =
+    walletBalance > 0
+      ? Math.max(
+          0,
+          Math.round((walletBalance - pendingReserved) * 100) / 100,
+        )
+      : 0;
   const totalWithdrawnAmount = totalWithdrawn._sum.amount || 0;
 
   // Calculate increase rate from last month

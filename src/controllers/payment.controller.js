@@ -3,7 +3,10 @@
 // src/controllers/payment.controller.js
 import { prisma } from "../prisma.js";
 import { createCommissionForWO } from "../services/commission.service.js";
-import { notifyPaymentVerified } from "../services/notification.service.js";
+import {
+  notifyPaymentVerified,
+  notifyPaymentRejected,
+} from "../services/notification.service.js";
 import { uploadImageToService } from "../utils/imageUpload.js";
 
 export const getAllPayments = async (req, res, next) => {
@@ -152,6 +155,34 @@ export const uploadPaymentProof = async (req, res, next) => {
       return res
         .status(400)
         .json({ message: "Work Order is not completed yet" });
+    }
+
+    // Time limit: do not allow submission too long after job completion (e.g. 30 days)
+    const MAX_DAYS_TO_SUBMIT = 30;
+    if (wo.completedAt) {
+      const daysSinceCompletion =
+        (Date.now() - new Date(wo.completedAt).getTime()) /
+        (24 * 60 * 60 * 1000);
+      if (daysSinceCompletion > MAX_DAYS_TO_SUBMIT) {
+        return res.status(400).json({
+          message: `Payment proof cannot be submitted: submission period has passed (max ${MAX_DAYS_TO_SUBMIT} days after job completion). Please contact support.`,
+        });
+      }
+    }
+
+    // One submission at a time: if a payment is already PENDING_VERIFICATION for this WO, technician must wait for approve/reject before resubmitting
+    const existingPending = await prisma.payment.findFirst({
+      where: {
+        woId: Number(woId),
+        technicianId,
+        status: "PENDING_VERIFICATION",
+      },
+    });
+    if (existingPending) {
+      return res.status(400).json({
+        message:
+          "A payment proof is already awaiting verification for this work order. Wait for admin to approve or reject before resubmitting.",
+      });
     }
 
     // Auto-fetch amount from service pricing or use manual override
@@ -323,7 +354,24 @@ export const verifyPayment = async (req, res, next) => {
         },
       });
 
-      return res.json(updatedPayment);
+      try {
+        await notifyPaymentRejected(
+          payment.technicianId,
+          payment.workOrder,
+          updatedPayment
+        );
+      } catch (notificationError) {
+        console.log(
+          "Rejection notification failed (non-critical):",
+          notificationError?.message
+        );
+      }
+
+      return res.json({
+        ...updatedPayment,
+        message:
+          "Payment rejected. Technician can resubmit payment proof for this work order.",
+      });
     }
   } catch (err) {
     next(err);

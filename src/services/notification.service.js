@@ -407,6 +407,22 @@ export const notifyPaymentVerified = async (technicianId, wo, payment) => {
   }
 };
 
+// Notify technician when payment proof is rejected (they can resubmit)
+export const notifyPaymentRejected = async (technicianId, wo, payment) => {
+  try {
+    const reason = payment.rejectedReason || "No reason provided";
+    return createNotification(
+      technicianId,
+      "PAYMENT_REJECTED",
+      "Payment proof rejected",
+      `Your payment proof for WO ${wo.woNumber} was rejected. Reason: ${reason}. You can resubmit payment proof for this work order.`,
+      { woId: wo.id, woNumber: wo.woNumber, rejectedReason: reason }
+    );
+  } catch (error) {
+    console.error("Error in notifyPaymentRejected:", error);
+  }
+};
+
 // ✅ Send notification for commission paid alert for each service payout
 export const notifyCommissionPaid = async (technicianId, payout) => {
   try {

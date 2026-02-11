@@ -9,15 +9,21 @@ import { prisma } from "../prisma.js";
  */
 export const getPayoutSummary = async (req, res, next) => {
   try {
-    // Get pending commissions (EARNED status, not yet paid)
-    const pendingCommissions = await prisma.commission.aggregate({
+    // Pending = EARNED, payoutId null; amount shown = remaining (amount - paidOutAmount)
+    const pendingCommissionRows = await prisma.commission.findMany({
       where: {
         status: "EARNED",
         payoutId: null,
       },
-      _sum: { amount: true },
-      _count: true,
+      select: { amount: true, paidOutAmount: true },
     });
+    const pendingRemaining = pendingCommissionRows
+      .map((c) => Math.round((c.amount - (c.paidOutAmount ?? 0)) * 100) / 100)
+      .filter((r) => r > 0);
+    const pendingCommissions = {
+      _sum: { amount: pendingRemaining.reduce((a, b) => a + b, 0) },
+      _count: pendingRemaining.length,
+    };
 
     // Get early payout requests (PENDING status)
     const earlyPayoutRequests = await prisma.payoutRequest.aggregate({
@@ -50,9 +56,19 @@ export const getPayoutSummary = async (req, res, next) => {
     const nextPayoutDate = new Date(today);
     nextPayoutDate.setDate(today.getDate() + daysUntilMonday);
 
+    // Adjust pending commissions by subtracting reserved amount from PENDING early payout requests.
+    // This way, when a technician submits an early payout request, the requested amount is
+    // temporarily removed from the Pending Commissions card. If the request is later rejected
+    // (status changes from PENDING), the reserved amount is released automatically.
+    const rawPendingAmount = pendingCommissions._sum.amount || 0;
+    const reservedEarlyPayout = earlyPayoutRequests._sum.amount || 0;
+    const adjustedPendingAmount =
+      Math.round(Math.max(0, rawPendingAmount - reservedEarlyPayout) * 100) /
+      100;
+
     return res.json({
       pendingCommissions: {
-        amount: pendingCommissions._sum.amount || 0,
+        amount: adjustedPendingAmount,
         count: pendingCommissions._count || 0,
       },
       earlyPayoutRequests: {
@@ -119,11 +135,86 @@ export const getPendingCommissions = async (req, res, next) => {
       },
     });
 
-    // Filter by search if provided
-    let filtered = commissions;
+    // Remaining base = amount - paidOutAmount (partial early payouts allocate to paidOutAmount)
+    let withRemaining = commissions
+      .map((c) => {
+        const paid = c.paidOutAmount ?? 0;
+        const rem = Math.round((c.amount - paid) * 100) / 100;
+        return { ...c, remaining: rem };
+      })
+      .filter((c) => c.remaining > 0);
+
+    // Reserve amounts from PENDING early payout requests so they are not double-counted.
+    // For each technician, subtract their pending request amount from their commissions'
+    // remaining values (oldest commissions first). If the request is later REJECTED or APPROVED,
+    // status is no longer PENDING so the reservation automatically disappears.
+    if (withRemaining.length > 0) {
+      const technicianIds = [
+        ...new Set(withRemaining.map((c) => c.technicianId).filter(Boolean)),
+      ];
+
+      if (technicianIds.length > 0) {
+        const pendingRequests = await prisma.payoutRequest.findMany({
+          where: {
+            status: "PENDING",
+            technicianId: { in: technicianIds },
+          },
+          select: {
+            technicianId: true,
+            amount: true,
+          },
+        });
+
+        const reservedByTech = new Map();
+        for (const r of pendingRequests) {
+          const prev = reservedByTech.get(r.technicianId) ?? 0;
+          reservedByTech.set(
+            r.technicianId,
+            Math.round((prev + r.amount) * 100) / 100,
+          );
+        }
+
+        // Apply reservations per technician to commissions (oldest first)
+        if (reservedByTech.size > 0) {
+          const byTech = new Map();
+          for (const c of withRemaining) {
+            if (!c.technicianId) continue;
+            if (!byTech.has(c.technicianId)) byTech.set(c.technicianId, []);
+            byTech.get(c.technicianId).push(c);
+          }
+
+          for (const [techId, list] of byTech.entries()) {
+            let reserved = reservedByTech.get(techId) ?? 0;
+            if (reserved <= 0) continue;
+
+            // Oldest commissions first
+            list.sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime(),
+            );
+
+            for (const c of list) {
+              if (reserved <= 0) break;
+              if (c.remaining <= 0) continue;
+              const allocate = Math.min(c.remaining, reserved);
+              c.remaining =
+                Math.round((c.remaining - allocate) * 100) / 100;
+              reserved =
+                Math.round((reserved - allocate) * 100) / 100;
+            }
+          }
+
+          // Drop commissions that became fully reserved
+          withRemaining = withRemaining.filter((c) => c.remaining > 0);
+        }
+      }
+    }
+
+    let filtered = withRemaining;
     if (search) {
       const searchLower = search.toLowerCase();
-      filtered = commissions.filter(
+      filtered = withRemaining.filter(
         (c) =>
           c.technician?.name?.toLowerCase().includes(searchLower) ||
           c.workOrder?.woNumber?.toLowerCase().includes(searchLower),
@@ -143,7 +234,7 @@ export const getPendingCommissions = async (req, res, next) => {
         "Service",
       payment: commission.payment?.amount || 0,
       rate: commission.rate,
-      amount: commission.amount,
+      amount: commission.remaining,
       date: commission.createdAt,
     }));
 
@@ -202,7 +293,7 @@ export const createWeeklyBatch = async (req, res, next) => {
   try {
     const adminId = req.user.id;
 
-    // Get all pending commissions
+    // Get all pending commissions (remaining = amount - paidOutAmount)
     const pendingCommissions = await prisma.commission.findMany({
       where: {
         status: "EARNED",
@@ -218,15 +309,88 @@ export const createWeeklyBatch = async (req, res, next) => {
       },
     });
 
-    if (pendingCommissions.length === 0) {
+    let withRemaining = pendingCommissions
+      .map((c) => {
+        const rem = Math.round(
+          (c.amount - (c.paidOutAmount ?? 0)) * 100,
+        ) / 100;
+        return { ...c, remaining: rem };
+      })
+      .filter((c) => c.remaining > 0);
+
+    // Reserve amounts from PENDING early payout requests so they are not
+    // included in the weekly batch while the request is under review.
+    if (withRemaining.length > 0) {
+      const technicianIds = [
+        ...new Set(withRemaining.map((c) => c.technicianId).filter(Boolean)),
+      ];
+
+      if (technicianIds.length > 0) {
+        const pendingRequests = await prisma.payoutRequest.findMany({
+          where: {
+            status: "PENDING",
+            technicianId: { in: technicianIds },
+          },
+          select: {
+            technicianId: true,
+            amount: true,
+          },
+        });
+
+        const reservedByTech = new Map();
+        for (const r of pendingRequests) {
+          const prev = reservedByTech.get(r.technicianId) ?? 0;
+          reservedByTech.set(
+            r.technicianId,
+            Math.round((prev + r.amount) * 100) / 100,
+          );
+        }
+
+        if (reservedByTech.size > 0) {
+          const byTech = new Map();
+          for (const c of withRemaining) {
+            if (!c.technicianId) continue;
+            if (!byTech.has(c.technicianId)) byTech.set(c.technicianId, []);
+            byTech.get(c.technicianId).push(c);
+          }
+
+          for (const [techId, list] of byTech.entries()) {
+            let reserved = reservedByTech.get(techId) ?? 0;
+            if (reserved <= 0) continue;
+
+            // Oldest commissions first
+            list.sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime(),
+            );
+
+            for (const c of list) {
+              if (reserved <= 0) break;
+              if (c.remaining <= 0) continue;
+              const allocate = Math.min(c.remaining, reserved);
+              c.remaining =
+                Math.round((c.remaining - allocate) * 100) / 100;
+              reserved =
+                Math.round((reserved - allocate) * 100) / 100;
+            }
+          }
+
+          // Drop fully reserved commissions
+          withRemaining = withRemaining.filter((c) => c.remaining > 0);
+        }
+      }
+    }
+
+    if (withRemaining.length === 0) {
       return res.status(400).json({
         message: "No pending commissions to process",
       });
     }
 
-    // Group by technician
+    // Group by technician (use remaining amount)
     const technicianGroups = {};
-    pendingCommissions.forEach((commission) => {
+    withRemaining.forEach((commission) => {
       if (!technicianGroups[commission.technicianId]) {
         technicianGroups[commission.technicianId] = {
           technician: commission.technician,
@@ -235,11 +399,10 @@ export const createWeeklyBatch = async (req, res, next) => {
         };
       }
       technicianGroups[commission.technicianId].commissions.push(commission);
-      // Round to 2 decimal places to avoid floating-point precision issues
       technicianGroups[commission.technicianId].totalAmount =
         Math.round(
           (technicianGroups[commission.technicianId].totalAmount +
-            commission.amount) *
+            commission.remaining) *
             100,
         ) / 100;
     });
@@ -268,16 +431,17 @@ export const createWeeklyBatch = async (req, res, next) => {
         },
       });
 
-      // Update commissions to link to this payout
-      await prisma.commission.updateMany({
-        where: {
-          id: { in: group.commissions.map((c) => c.id) },
-        },
-        data: {
-          payoutId: payout.id,
-          status: "PENDING_PAYOUT",
-        },
-      });
+      // Link commissions to this payout; set paidOutAmount = amount (fully allocated)
+      for (const c of group.commissions) {
+        await prisma.commission.update({
+          where: { id: c.id },
+          data: {
+            payoutId: payout.id,
+            status: "PENDING_PAYOUT",
+            paidOutAmount: c.amount,
+          },
+        });
+      }
 
       payouts.push({
         id: payout.id,
@@ -298,7 +462,7 @@ export const createWeeklyBatch = async (req, res, next) => {
             0,
           ) * 100,
         ) / 100,
-      totalCommissions: pendingCommissions.length,
+      totalCommissions: withRemaining.length,
       payouts,
     });
   } catch (err) {
@@ -769,7 +933,9 @@ export const approveEarlyPayout = async (req, res, next) => {
       },
     });
 
-    // Try to link any unlinked EARNED commissions to this payout (optional, for tracking)
+    // Commission handling: Case A (full) vs Case B (partial)
+    // Full: request amount >= total remaining → link all commissions to this payout, remove from Pending.
+    // Partial: allocate request.amount to paidOutAmount so remaining (amount - paidOutAmount) stays in Pending.
     const earnedCommissions = await prisma.commission.findMany({
       where: {
         technicianId: request.technicianId,
@@ -779,25 +945,42 @@ export const approveEarlyPayout = async (req, res, next) => {
       orderBy: { createdAt: "asc" },
     });
 
-    // Link commissions up to the requested amount (for audit purposes)
-    if (earnedCommissions.length > 0) {
-      let remaining = request.amount;
-      const commissionsToUpdate = [];
+    const paidOut = (c) => c.paidOutAmount ?? 0;
+    const remaining = (c) =>
+      Math.round((c.amount - paidOut(c)) * 100) / 100;
+    const totalRemaining = earnedCommissions.reduce(
+      (sum, c) => Math.round((sum + remaining(c)) * 100) / 100,
+      0
+    );
+    const isFullPayout =
+      request.amount >= totalRemaining && earnedCommissions.length > 0;
 
-      for (const commission of earnedCommissions) {
-        if (remaining <= 0) break;
-        commissionsToUpdate.push(commission.id);
-        remaining -= commission.amount;
-      }
-
-      if (commissionsToUpdate.length > 0) {
-        await prisma.commission.updateMany({
-          where: { id: { in: commissionsToUpdate } },
+    if (isFullPayout) {
+      // Case A: Full — link all to this payout, set paidOutAmount = amount
+      for (const c of earnedCommissions) {
+        await prisma.commission.update({
+          where: { id: c.id },
           data: {
             payoutId: payout.id,
             status: "PAID",
+            paidOutAmount: c.amount,
           },
         });
+      }
+    } else {
+      // Case B: Partial — allocate request.amount to paidOutAmount (remaining stays in Pending)
+      let toAllocate = Math.round(request.amount * 100) / 100;
+      for (const c of earnedCommissions) {
+        if (toAllocate <= 0) break;
+        const rem = remaining(c);
+        if (rem <= 0) continue;
+        const allocate = Math.min(toAllocate, rem);
+        const newPaidOut = Math.round((paidOut(c) + allocate) * 100) / 100;
+        await prisma.commission.update({
+          where: { id: c.id },
+          data: { paidOutAmount: newPaidOut },
+        });
+        toAllocate = Math.round((toAllocate - allocate) * 100) / 100;
       }
     }
 

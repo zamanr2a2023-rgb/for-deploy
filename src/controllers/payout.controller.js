@@ -921,6 +921,20 @@ export const approveEarlyPayout = async (req, res, next) => {
       });
     }
 
+    // Mark request as APPROVED immediately so it is no longer counted in "reserved"
+    // (pending early payout requests). Otherwise a later failure (e.g. notification)
+    // would leave the request PENDING and cause the same amount to be deducted twice
+    // in pending commission calculations (e.g. 205 - 5 approved - 10 pending = 190
+    // would show as 185 if the first request stayed PENDING and reserved 5+10=15).
+    await prisma.payoutRequest.update({
+      where: { id: Number(id) },
+      data: {
+        status: "APPROVED",
+        reviewedById: adminId,
+        reviewedAt: new Date(),
+      },
+    });
+
     // Create early payout record
     const payout = await prisma.payout.create({
       data: {
@@ -1002,16 +1016,6 @@ export const approveEarlyPayout = async (req, res, next) => {
         sourceId: payout.id,
         amount: request.amount,
         description: `Early payout - ${request.paymentMethod || "Cash"}`,
-      },
-    });
-
-    // Update request status
-    await prisma.payoutRequest.update({
-      where: { id: Number(id) },
-      data: {
-        status: "APPROVED",
-        reviewedById: adminId,
-        reviewedAt: new Date(),
       },
     });
 
